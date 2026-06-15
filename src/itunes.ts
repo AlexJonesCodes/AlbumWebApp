@@ -50,7 +50,32 @@ export async function searchAlbums(query: string): Promise<ITunesAlbum[]> {
       merged.push(album);
     }
   }
-  return merged.sort((a, b) => b.trackCount - a.trackCount);
+  const q = query.toLowerCase();
+  return merged.sort((a, b) => relevance(b, q) - relevance(a, q));
+}
+
+function relevance(album: ITunesAlbum, query: string): number {
+  const artist = album.artistName.toLowerCase();
+  const name = album.collectionName.toLowerCase();
+  let score = 0;
+
+  if (artist === query) score += 100;
+  else if (artist.startsWith(query)) score += 80;
+  else if (artist.includes(query)) score += 60;
+
+  if (name === query) score += 50;
+  else if (name.startsWith(query)) score += 40;
+  else if (name.includes(query)) score += 20;
+
+  const words = query.split(/\s+/);
+  if (words.length > 1) {
+    const matched = words.filter((w) => artist.includes(w) || name.includes(w));
+    score += (matched.length / words.length) * 30;
+  }
+
+  score += Math.min(album.trackCount, 25) * 0.5;
+
+  return score;
 }
 
 export async function getAlbumTracks(
