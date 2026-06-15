@@ -20,12 +20,11 @@ export interface ITunesTrack {
 }
 
 export async function searchAlbums(query: string): Promise<ITunesAlbum[]> {
-  const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=40`;
+  const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=200`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('Search failed');
   const data = await res.json();
   return (data.results as ITunesAlbum[])
-    .filter((r) => r.collectionType === 'Album')
     .sort((a, b) => b.trackCount - a.trackCount);
 }
 
