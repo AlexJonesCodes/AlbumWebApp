@@ -19,6 +19,8 @@ export interface ITunesTrack {
   wrapperType: string;
 }
 
+export type SearchMode = 'artist' | 'album';
+
 async function fetchAlbums(
   query: string,
   attribute?: string,
@@ -35,41 +37,59 @@ async function fetchAlbums(
   return data.results as ITunesAlbum[];
 }
 
-export async function searchAlbums(query: string): Promise<ITunesAlbum[]> {
-  const [general, byAlbum, byArtist] = await Promise.all([
-    fetchAlbums(query),
-    fetchAlbums(query, 'albumTerm'),
-    fetchAlbums(query, 'artistTerm'),
-  ]);
-
+function dedupe(lists: ITunesAlbum[][]): ITunesAlbum[] {
   const seen = new Set<number>();
   const merged: ITunesAlbum[] = [];
-  for (const album of [...general, ...byAlbum, ...byArtist]) {
-    if (!seen.has(album.collectionId)) {
-      seen.add(album.collectionId);
-      merged.push(album);
+  for (const list of lists) {
+    for (const album of list) {
+      if (!seen.has(album.collectionId)) {
+        seen.add(album.collectionId);
+        merged.push(album);
+      }
     }
   }
-  const q = query.toLowerCase();
-  return merged.sort((a, b) => relevance(b, q) - relevance(a, q));
+  return merged;
 }
 
-function relevance(album: ITunesAlbum, query: string): number {
+export async function searchAlbums(
+  query: string,
+  mode: SearchMode,
+): Promise<ITunesAlbum[]> {
+  const [primary, general] = await Promise.all([
+    fetchAlbums(query, mode === 'artist' ? 'artistTerm' : 'albumTerm'),
+    fetchAlbums(query),
+  ]);
+
+  const merged = dedupe([primary, general]);
+  const q = query.toLowerCase();
+  return merged.sort((a, b) => relevance(b, q, mode) - relevance(a, q, mode));
+}
+
+function relevance(
+  album: ITunesAlbum,
+  query: string,
+  mode: SearchMode,
+): number {
   const artist = album.artistName.toLowerCase();
   const name = album.collectionName.toLowerCase();
   let score = 0;
 
-  if (artist === query) score += 100;
-  else if (artist.startsWith(query)) score += 80;
-  else if (artist.includes(query)) score += 60;
+  const artistWeight = mode === 'artist' ? 2 : 1;
+  const albumWeight = mode === 'album' ? 2 : 1;
 
-  if (name === query) score += 50;
-  else if (name.startsWith(query)) score += 40;
-  else if (name.includes(query)) score += 20;
+  if (artist === query) score += 100 * artistWeight;
+  else if (artist.startsWith(query)) score += 80 * artistWeight;
+  else if (artist.includes(query)) score += 60 * artistWeight;
+
+  if (name === query) score += 50 * albumWeight;
+  else if (name.startsWith(query)) score += 40 * albumWeight;
+  else if (name.includes(query)) score += 20 * albumWeight;
 
   const words = query.split(/\s+/);
   if (words.length > 1) {
-    const matched = words.filter((w) => artist.includes(w) || name.includes(w));
+    const matched = words.filter(
+      (w) => artist.includes(w) || name.includes(w),
+    );
     score += (matched.length / words.length) * 30;
   }
 

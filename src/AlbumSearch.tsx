@@ -5,13 +5,11 @@ import {
   getAlbumTracks,
   highResArtwork,
   type ITunesAlbum,
+  type SearchMode,
 } from './itunes';
 import { createSong } from './engine';
 
-function buildSession(
-  album: ITunesAlbum,
-  songs: Song[],
-): Session {
+function buildSession(album: ITunesAlbum, songs: Song[]): Session {
   const now = Date.now();
   return {
     id: crypto.randomUUID(),
@@ -33,6 +31,7 @@ interface Props {
 
 export function AlbumSearch({ onCreateSession, onBack }: Props) {
   const [query, setQuery] = useState('');
+  const [mode, setMode] = useState<SearchMode>('artist');
   const [results, setResults] = useState<ITunesAlbum[]>([]);
   const [searching, setSearching] = useState(false);
   const [loadingId, setLoadingId] = useState<number | null>(null);
@@ -51,7 +50,7 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
     setHasSearched(true);
 
     try {
-      const albums = await searchAlbums(q);
+      const albums = await searchAlbums(q, mode);
       setResults(albums);
       if (albums.length === 0) {
         setError('No albums found. Try a different search.');
@@ -92,6 +91,8 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
     }
   }
 
+  const filtered = results.filter((a) => !hideSingles || a.trackCount >= 5);
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
       <button
@@ -105,13 +106,41 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
         Find an Album
       </h1>
 
+      {/* Search mode toggle */}
+      <div className="flex gap-1 mb-4 bg-zinc-900 rounded-lg p-1 w-fit">
+        <button
+          type="button"
+          onClick={() => setMode('artist')}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            mode === 'artist'
+              ? 'bg-amber-500 text-zinc-900'
+              : 'text-zinc-400 hover:text-zinc-200'
+          }`}
+        >
+          By Artist
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('album')}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            mode === 'album'
+              ? 'bg-amber-500 text-zinc-900'
+              : 'text-zinc-400 hover:text-zinc-200'
+          }`}
+        >
+          By Album
+        </button>
+      </div>
+
       <form onSubmit={handleSearch} className="flex gap-3 mb-8">
         <input
           ref={inputRef}
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Album or artist name..."
+          placeholder={
+            mode === 'artist' ? 'Artist name...' : 'Album name...'
+          }
           className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors"
           autoFocus
         />
@@ -124,9 +153,7 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
         </button>
       </form>
 
-      {error && (
-        <p className="text-rose-400 text-sm mb-6">{error}</p>
-      )}
+      {error && <p className="text-rose-400 text-sm mb-6">{error}</p>}
 
       {results.length > 0 && (
         <div>
@@ -140,42 +167,47 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
             Hide singles &amp; EPs (fewer than 5 tracks)
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {results.filter((a) => !hideSingles || a.trackCount >= 5).map((album) => {
-            const isLoading = loadingId === album.collectionId;
-            const year = new Date(album.releaseDate).getFullYear();
-            return (
-              <button
-                key={album.collectionId}
-                onClick={() => handleSelect(album)}
-                disabled={loadingId !== null}
-                className="group text-left bg-zinc-900 rounded-xl p-3 hover:bg-zinc-800 transition-colors disabled:opacity-60"
-              >
-                <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-zinc-800">
-                  <img
-                    src={highResArtwork(album.artworkUrl100, 300)}
-                    alt={album.collectionName}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  {isLoading && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                      <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-                </div>
-                <p className="text-sm font-medium text-zinc-100 truncate">
-                  {album.collectionName}
-                </p>
-                <p className="text-xs text-zinc-400 truncate">
-                  {album.artistName}
-                </p>
-                <p className="text-xs text-zinc-600">
-                  {year} &middot; {album.trackCount} tracks
-                </p>
-              </button>
-            );
-          })}
+            {filtered.map((album) => {
+              const isLoading = loadingId === album.collectionId;
+              const year = new Date(album.releaseDate).getFullYear();
+              return (
+                <button
+                  key={album.collectionId}
+                  onClick={() => handleSelect(album)}
+                  disabled={loadingId !== null}
+                  className="group text-left bg-zinc-900 rounded-xl p-3 hover:bg-zinc-800 transition-colors disabled:opacity-60"
+                >
+                  <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-zinc-800">
+                    <img
+                      src={highResArtwork(album.artworkUrl100, 300)}
+                      alt={album.collectionName}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    {isLoading && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium text-zinc-100 truncate">
+                    {album.collectionName}
+                  </p>
+                  <p className="text-xs text-zinc-400 truncate">
+                    {album.artistName}
+                  </p>
+                  <p className="text-xs text-zinc-600">
+                    {year} &middot; {album.trackCount} tracks
+                  </p>
+                </button>
+              );
+            })}
           </div>
+          {filtered.length === 0 && (
+            <p className="text-zinc-500 text-center py-8">
+              All results hidden by filter. Uncheck to see singles &amp; EPs.
+            </p>
+          )}
         </div>
       )}
 
