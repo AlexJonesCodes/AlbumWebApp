@@ -290,12 +290,22 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
                 onClick={() => handleVerdict('strong-right')}
               />
             </div>
-            <button
-              onClick={handleSkip}
-              className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors"
-            >
-              Skip (S)
-            </button>
+            <div className="flex gap-4">
+              <button
+                onClick={handleSkip}
+                className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors"
+              >
+                Skip (S)
+              </button>
+              {matchups.length > 0 && (
+                <button
+                  onClick={handleUndo}
+                  className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors"
+                >
+                  Undo (Z)
+                </button>
+              )}
+            </div>
           </div>
         </div>
       ) : (

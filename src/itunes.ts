@@ -60,15 +60,23 @@ export async function searchAlbums(
     fetchAlbums(query),
   ]);
 
-  const merged = dedupe([primary, general]);
+  const popularityRank = new Map<number, number>();
+  general.forEach((album, i) => popularityRank.set(album.collectionId, i));
+
+  const merged = dedupe([general, primary]);
   const q = query.toLowerCase();
-  return merged.sort((a, b) => relevance(b, q, mode) - relevance(a, q, mode));
+  return merged.sort(
+    (a, b) =>
+      relevance(b, q, mode, popularityRank) -
+      relevance(a, q, mode, popularityRank),
+  );
 }
 
 function relevance(
   album: ITunesAlbum,
   query: string,
   mode: SearchMode,
+  popularityRank: Map<number, number>,
 ): number {
   const artist = album.artistName.toLowerCase();
   const name = album.collectionName.toLowerCase();
@@ -94,6 +102,11 @@ function relevance(
   }
 
   score += Math.min(album.trackCount, 25) * 0.5;
+
+  const rank = popularityRank.get(album.collectionId);
+  if (rank !== undefined) {
+    score += Math.max(0, 60 - rank * 0.3);
+  }
 
   return score;
 }
