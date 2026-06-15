@@ -38,6 +38,7 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [hideSingles, setHideSingles] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleSearch(e: React.FormEvent) {
@@ -128,8 +129,18 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
       )}
 
       {results.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {results.map((album) => {
+        <div>
+          <label className="flex items-center gap-2 mb-4 text-sm text-zinc-400 cursor-pointer w-fit">
+            <input
+              type="checkbox"
+              checked={hideSingles}
+              onChange={(e) => setHideSingles(e.target.checked)}
+              className="accent-amber-500"
+            />
+            Hide singles &amp; EPs (fewer than 5 tracks)
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {results.filter((a) => !hideSingles || a.trackCount >= 5).map((album) => {
             const isLoading = loadingId === album.collectionId;
             const year = new Date(album.releaseDate).getFullYear();
             return (
@@ -164,6 +175,7 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
               </button>
             );
           })}
+          </div>
         </div>
       )}
 
