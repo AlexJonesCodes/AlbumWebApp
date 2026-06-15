@@ -207,8 +207,13 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
                   <p className="text-xs text-zinc-400 truncate">
                     {album.artistName}
                   </p>
-                  <p className="text-xs text-zinc-600">
+                  <p className="text-xs text-zinc-600 flex items-center gap-1.5">
                     {album.trackCount} tracks
+                    {album.explicit && (
+                      <span className="inline-flex items-center justify-center w-4 h-4 bg-zinc-600 text-zinc-200 text-[9px] font-bold rounded-sm leading-none">
+                        E
+                      </span>
+                    )}
                   </p>
                 </button>
               );
