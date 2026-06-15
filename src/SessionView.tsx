@@ -22,6 +22,7 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
     null,
   );
   const [audioProgress, setAudioProgress] = useState(0);
+  const [volume, setVolume] = useState(0.5);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const handlersRef = useRef<{
@@ -32,6 +33,7 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
 
   useEffect(() => {
     const audio = new Audio();
+    audio.volume = 0.5;
     audioRef.current = audio;
 
     function onTime() {
@@ -63,6 +65,12 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
     if (audio) audio.pause();
     setPlayingSide(null);
     setAudioProgress(0);
+  }
+
+  function changeVolume(v: number) {
+    setVolume(v);
+    const audio = audioRef.current;
+    if (audio) audio.volume = v;
   }
 
   function togglePlay(side: 'left' | 'right') {
@@ -227,6 +235,20 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
               playing={playingSide === 'right'}
               progress={playingSide === 'right' ? audioProgress : 0}
               onToggle={() => togglePlay('right')}
+            />
+          </div>
+
+          {/* Volume */}
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <VolumeIcon muted={volume === 0} />
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={(e) => changeVolume(Number(e.target.value))}
+              className="w-28 h-1 accent-amber-500 cursor-pointer"
             />
           </div>
 
@@ -429,6 +451,24 @@ function VerdictBtn({
       {text}
       <span className="ml-1.5 opacity-40">{hint}</span>
     </button>
+  );
+}
+
+function VolumeIcon({ muted }: { muted: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className="w-4 h-4 text-zinc-500 flex-shrink-0"
+    >
+      <path d="M3 9v6h4l5 5V4L7 9H3z" />
+      {!muted && (
+        <path
+          d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"
+          fill="currentColor"
+        />
+      )}
+    </svg>
   );
 }
 
