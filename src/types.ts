@@ -7,7 +7,7 @@ export type MatchResult =
 
 export interface Song {
   id: string;
-  itunesTrackId: number;
+  trackId: number;
   name: string;
   artist: string;
   artworkUrl: string;
@@ -31,7 +31,7 @@ export interface Session {
   albumName: string;
   artistName: string;
   artworkUrl: string;
-  collectionId: number;
+  albumId: number;
   songs: Song[];
   matchups: MatchupRecord[];
   createdAt: number;

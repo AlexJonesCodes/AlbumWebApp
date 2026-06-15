@@ -1,22 +1,22 @@
 import { useState } from 'react';
 import type { Session, Song } from './types';
 import {
-  findItunesAlbum,
-  getAlbumTracks,
-  highResArtwork,
-  type ITunesAlbum,
-} from './itunes';
-import { searchAlbums, type DeezerAlbum, type SearchMode } from './deezer';
+  searchAlbums,
+  getDeezerAlbum,
+  type DeezerAlbum,
+  type DeezerAlbumDetail,
+  type SearchMode,
+} from './deezer';
 import { createSong } from './engine';
 
-function buildSession(album: ITunesAlbum, songs: Song[]): Session {
+function buildSession(album: DeezerAlbumDetail, songs: Song[]): Session {
   const now = Date.now();
   return {
     id: crypto.randomUUID(),
-    albumName: album.collectionName,
+    albumName: album.title,
     artistName: album.artistName,
-    artworkUrl: highResArtwork(album.artworkUrl100),
-    collectionId: album.collectionId,
+    artworkUrl: album.coverXl,
+    albumId: album.id,
     songs,
     matchups: [],
     createdAt: now,
@@ -69,33 +69,24 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
     setError(null);
 
     try {
-      const itunesAlbum = await findItunesAlbum(album.artistName, album.title);
-      if (!itunesAlbum) {
-        setError(
-          `"${album.title}" isn't available on iTunes. Try another album.`,
-        );
-        setLoadingId(null);
-        return;
-      }
-
-      const tracks = await getAlbumTracks(itunesAlbum.collectionId);
-      if (tracks.length < 2) {
+      const detail = await getDeezerAlbum(album.id);
+      if (detail.tracks.length < 2) {
         setError('This album needs at least 2 tracks to rank.');
         setLoadingId(null);
         return;
       }
 
-      const songs = tracks.map((t) =>
+      const songs = detail.tracks.map((t) =>
         createSong(
-          t.trackId,
-          t.trackName,
+          t.id,
+          t.title,
           t.artistName,
-          highResArtwork(t.artworkUrl100),
-          t.previewUrl ?? null,
+          detail.coverXl,
+          t.preview || null,
         ),
       );
 
-      onCreateSession(buildSession(itunesAlbum, songs));
+      onCreateSession(buildSession(detail, songs));
     } catch {
       setError('Failed to load tracks. Try again.');
       setLoadingId(null);

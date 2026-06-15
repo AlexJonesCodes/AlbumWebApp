@@ -87,3 +87,66 @@ function toAlbum(raw: RawAlbum, artistName: string): DeezerAlbum {
     artistName,
   };
 }
+
+export interface DeezerTrack {
+  id: number;
+  title: string;
+  preview: string;
+  trackPosition: number;
+  diskNumber: number;
+  artistName: string;
+}
+
+export interface DeezerAlbumDetail {
+  id: number;
+  title: string;
+  coverXl: string;
+  artistName: string;
+  tracks: DeezerTrack[];
+}
+
+interface RawTrack {
+  id: number;
+  title: string;
+  preview: string;
+  track_position: number;
+  disk_number: number;
+  artist: { name: string };
+}
+
+interface RawAlbumDetail {
+  id: number;
+  title: string;
+  cover_xl: string;
+  artist: { name: string };
+  tracks: { data: RawTrack[] };
+}
+
+export async function getDeezerAlbum(
+  albumId: number,
+): Promise<DeezerAlbumDetail> {
+  const res = await fetch(`/api/deezer/album/${albumId}`);
+  if (!res.ok) throw new Error('Failed to load album');
+  const raw = (await res.json()) as RawAlbumDetail;
+
+  return {
+    id: raw.id,
+    title: raw.title,
+    coverXl: raw.cover_xl || '',
+    artistName: raw.artist.name,
+    tracks: raw.tracks.data
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        preview: t.preview,
+        trackPosition: t.track_position,
+        diskNumber: t.disk_number,
+        artistName: t.artist.name,
+      }))
+      .sort((a, b) =>
+        a.diskNumber !== b.diskNumber
+          ? a.diskNumber - b.diskNumber
+          : a.trackPosition - b.trackPosition,
+      ),
+  };
+}

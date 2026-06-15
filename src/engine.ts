@@ -4,15 +4,15 @@ const BASE_RATING = 1200;
 const BASE_K = 32;
 
 export function createSong(
-  itunesTrackId: number,
+  trackId: number,
   name: string,
   artist: string,
   artworkUrl: string,
   previewUrl: string | null,
 ): Song {
   return {
-    id: `song-${itunesTrackId}`,
-    itunesTrackId,
+    id: `song-${trackId}`,
+    trackId,
     name,
     artist,
     artworkUrl,
