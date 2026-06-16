@@ -4,7 +4,7 @@ export interface DeezerAlbum {
   id: number;
   title: string;
   coverUrl: string;
-  trackCount: number;
+  trackCount: number | null;
   recordType: string;
   artistName: string;
   explicit: boolean;
@@ -19,9 +19,9 @@ interface RawAlbum {
   id: number;
   title: string;
   cover_big: string;
-  nb_tracks: number;
-  record_type: string;
-  explicit_lyrics: boolean;
+  nb_tracks?: number;
+  record_type?: string;
+  explicit_lyrics?: boolean;
   artist?: { id: number; name: string };
 }
 
@@ -86,8 +86,11 @@ function toAlbum(raw: RawAlbum, artistName: string): DeezerAlbum {
     id: raw.id,
     title: raw.title,
     coverUrl: raw.cover_big || '',
-    trackCount: raw.nb_tracks,
-    recordType: raw.record_type,
+    trackCount:
+      typeof raw.nb_tracks === 'number' && raw.nb_tracks > 0
+        ? raw.nb_tracks
+        : null,
+    recordType: raw.record_type || '',
     artistName,
     explicit: raw.explicit_lyrics ?? false,
   };
@@ -95,14 +98,59 @@ function toAlbum(raw: RawAlbum, artistName: string): DeezerAlbum {
 
 function deduplicatePreferExplicit(albums: DeezerAlbum[]): DeezerAlbum[] {
   const seen = new Map<string, DeezerAlbum>();
+
   for (const album of albums) {
     const key = album.title.toLowerCase().trim();
     const existing = seen.get(key);
-    if (!existing || (!existing.explicit && album.explicit)) {
+
+    if (!existing) {
       seen.set(key, album);
+      continue;
     }
+
+    const preferred = pickPreferredAlbum(existing, album);
+    const alternate = preferred === existing ? album : existing;
+    seen.set(key, mergeAlbum(preferred, alternate));
   }
+
   return [...seen.values()];
+}
+
+function pickPreferredAlbum(a: DeezerAlbum, b: DeezerAlbum): DeezerAlbum {
+  const aIsLongForm = isLongFormRelease(a.recordType);
+  const bIsLongForm = isLongFormRelease(b.recordType);
+
+  if (aIsLongForm !== bIsLongForm) {
+    return aIsLongForm ? a : b;
+  }
+
+  if (a.explicit !== b.explicit) {
+    return a.explicit ? a : b;
+  }
+
+  const aTrackCount = a.trackCount ?? 0;
+  const bTrackCount = b.trackCount ?? 0;
+  if (aTrackCount !== bTrackCount) {
+    return aTrackCount > bTrackCount ? a : b;
+  }
+
+  return a;
+}
+
+function mergeAlbum(preferred: DeezerAlbum, alternate: DeezerAlbum): DeezerAlbum {
+  return {
+    ...preferred,
+    coverUrl: preferred.coverUrl || alternate.coverUrl,
+    trackCount: Math.max(preferred.trackCount ?? 0, alternate.trackCount ?? 0) || null,
+    recordType: preferred.recordType || alternate.recordType,
+    artistName: preferred.artistName || alternate.artistName,
+    explicit: preferred.explicit || alternate.explicit,
+  };
+}
+
+function isLongFormRelease(recordType: string): boolean {
+  const normalized = recordType.toLowerCase();
+  return normalized !== 'single' && normalized !== 'ep';
 }
 
 export interface DeezerTrack {
