@@ -7,6 +7,7 @@ export function createSong(
   trackId: number,
   name: string,
   artist: string,
+  albumTitle: string,
   artworkUrl: string,
   previewUrl: string | null,
 ): Song {
@@ -15,6 +16,7 @@ export function createSong(
     trackId,
     name,
     artist,
+    albumTitle,
     artworkUrl,
     previewUrl,
     rating: BASE_RATING,
