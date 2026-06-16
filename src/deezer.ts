@@ -1,4 +1,4 @@
-export type SearchMode = 'artist' | 'album';
+export type SearchMode = 'artist' | 'album' | 'multi';
 
 export interface DeezerAlbum {
   id: number;
