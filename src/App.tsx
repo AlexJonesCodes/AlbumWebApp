@@ -13,6 +13,16 @@ type View =
   | { page: 'session'; sessionId: string }
   | { page: 'merge'; targetSessionId: string };
 
+function forkComparisonSession(session: Session): Session {
+  const now = Date.now();
+  return {
+    ...session,
+    id: crypto.randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 function mergeSongLists(targetSongs: Song[], sourceSongs: Song[]): Song[] {
   const merged = new Map<number, Song>();
 
@@ -158,10 +168,16 @@ function App() {
     const source = sessions.find((session) => session.id === sourceSessionId);
     if (!target || !source) return;
 
-    const merged = mergeSessions(target, source);
+    let merged = mergeSessions(target, source);
+    const targetAlbumCount = target.albumIds?.length ? target.albumIds.length : 1;
+    const mergedAlbumCount = merged.albumIds?.length ? merged.albumIds.length : 1;
+    if (targetAlbumCount === 1 && mergedAlbumCount > 1) {
+      merged = forkComparisonSession(merged);
+    }
+
     saveSession(merged);
     refresh();
-    setView({ page: 'session', sessionId: targetSessionId });
+    setView({ page: 'session', sessionId: merged.id });
   }
 
   const active =
