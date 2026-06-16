@@ -37,6 +37,16 @@ function buildSession(albums: DeezerAlbumDetail[], songs: Song[]): Session {
   };
 }
 
+function forkComparisonSession(session: Session): Session {
+  const now = Date.now();
+  return {
+    ...session,
+    id: crypto.randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 function mergeSessionWithAlbums(
   session: Session,
   albums: DeezerAlbumDetail[],
@@ -160,6 +170,11 @@ export function AlbumSearch({
         : [],
   );
   const isComparisonBuilder = mode === 'multi' || !!existingSession;
+  const existingAlbumCount = existingSession?.albumIds?.length
+    ? existingSession.albumIds.length
+    : existingSession
+      ? 1
+      : 0;
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -232,6 +247,10 @@ export function AlbumSearch({
         if (nextSession.songs.length === existingSession.songs.length) {
           setError('Those albums are already in this comparison.');
           return;
+        }
+        const nextAlbumCount = nextSession.albumIds?.length ?? 1;
+        if (existingAlbumCount === 1 && nextAlbumCount > 1) {
+          nextSession = forkComparisonSession(nextSession);
         }
       } else {
         const songs = new Map<number, Song>();
@@ -316,11 +335,7 @@ export function AlbumSearch({
     (album) => !hideSingles || hasEnoughTracksForAlbumFilter(album),
   );
   const isBusy = searching || creatingMultiAlbum || loadingId !== null;
-  const comparisonAlbumCount = existingSession?.albumIds?.length
-    ? existingSession.albumIds.length
-    : existingSession
-      ? 1
-      : 0;
+  const comparisonAlbumCount = existingAlbumCount;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
