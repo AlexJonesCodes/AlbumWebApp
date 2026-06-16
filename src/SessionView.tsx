@@ -12,6 +12,13 @@ function makeTimestamp(): number {
   return Date.now();
 }
 
+function albumSummary(session: Session): string | null {
+  const names = session.albumNames;
+  if (!names || names.length <= 1) return null;
+  if (names.length <= 3) return names.join(' · ');
+  return `${names.slice(0, 3).join(' · ')} +${names.length - 3} more`;
+}
+
 export function SessionView({ session, onUpdate, onBack }: Props) {
   const [songs, setSongs] = useState(session.songs);
   const [matchups, setMatchups] = useState(session.matchups);
@@ -185,10 +192,10 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
   const minR = ratings.length > 0 ? Math.min(...ratings) : BASE;
   const range = maxR - minR || 1;
   const conf = confidence(songs);
+  const selectedAlbums = albumSummary(session);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <button
           onClick={onBack}
@@ -206,6 +213,11 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
             {session.albumName}
           </p>
           <p className="text-xs text-zinc-400 truncate">{session.artistName}</p>
+          {selectedAlbums && (
+            <p className="text-[10px] text-zinc-500 truncate mt-0.5">
+              {selectedAlbums}
+            </p>
+          )}
         </div>
         {matchups.length > 0 && (
           <button
@@ -217,7 +229,6 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
         )}
       </div>
 
-      {/* Matchup */}
       {currentPair && songA && songB ? (
         <div className="mb-10">
           <div className="flex items-start justify-center gap-4 sm:gap-8 md:gap-12 mb-6">
@@ -238,7 +249,6 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
             />
           </div>
 
-          {/* Volume */}
           <div className="flex items-center justify-center gap-2 mb-4">
             <VolumeIcon muted={volume === 0} />
             <input
@@ -252,7 +262,6 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
             />
           </div>
 
-          {/* Verdict buttons */}
           <div className="flex flex-col items-center gap-2">
             <div className="flex flex-wrap justify-center gap-2">
               <VerdictBtn
@@ -314,7 +323,6 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
         </p>
       )}
 
-      {/* Confidence bar */}
       <div className="mb-6">
         <div className="flex items-center justify-between text-xs text-zinc-500 mb-1.5">
           <span>{matchups.length} matchups</span>
@@ -328,7 +336,6 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
         </div>
       </div>
 
-      {/* Rankings */}
       <h2 className="text-base font-semibold text-zinc-200 mb-3">Rankings</h2>
       <div className="space-y-1.5">
         {sorted.map((song, i) => (
@@ -347,6 +354,9 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
             <div className="flex-1 min-w-0">
               <p className="text-sm text-zinc-100 truncate leading-tight">
                 {song.name}
+              </p>
+              <p className="text-[10px] text-zinc-500 truncate mt-0.5">
+                {song.albumTitle}
               </p>
               <div className="flex items-center gap-2 mt-0.5">
                 <div className="flex-1 h-0.5 bg-zinc-800 rounded-full overflow-hidden">
@@ -369,7 +379,6 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
         ))}
       </div>
 
-      {/* Keyboard hint */}
       <p className="text-[10px] text-zinc-700 text-center mt-8">
         Keys: 1-5 vote &middot; S skip &middot; Z undo
       </p>
@@ -423,6 +432,9 @@ function SongCard({
       <p className="mt-2 text-xs sm:text-sm font-medium text-zinc-200 text-center line-clamp-2 leading-tight">
         {song.name}
       </p>
+      <p className="mt-1 text-[10px] text-zinc-500 text-center line-clamp-2 leading-tight">
+        {song.albumTitle}
+      </p>
     </div>
   );
 }
@@ -440,7 +452,7 @@ function VerdictBtn({
   variant: 'strong' | 'lean' | 'tie';
   onClick: () => void;
 }) {
-  const arrows = dir === 'left' ? '« ' : dir === 'right' ? ' »' : '';
+  const arrows = dir === 'left' ? '\u00ab ' : dir === 'right' ? ' \u00bb' : '';
   const text =
     dir === 'left'
       ? `${arrows}${label}`
