@@ -24,6 +24,27 @@ function buildSession(album: DeezerAlbumDetail, songs: Song[]): Session {
   };
 }
 
+function hasEnoughTracksForAlbumFilter(album: DeezerAlbum): boolean {
+  if (typeof album.trackCount === 'number' && album.trackCount > 0) {
+    return album.trackCount >= 5;
+  }
+
+  const recordType = album.recordType.toLowerCase();
+  return recordType !== 'single' && recordType !== 'ep';
+}
+
+function formatAlbumMeta(album: DeezerAlbum): string {
+  if (typeof album.trackCount === 'number' && album.trackCount > 0) {
+    return `${album.trackCount} tracks`;
+  }
+
+  const recordType = album.recordType.toLowerCase();
+  if (recordType === 'single') return 'Single';
+  if (recordType === 'ep') return 'EP';
+  if (recordType === 'compile') return 'Compilation';
+  return 'Album';
+}
+
 interface Props {
   onCreateSession: (session: Session) => void;
   onBack: () => void;
@@ -94,7 +115,7 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
   }
 
   const filtered = results.filter(
-    (a) => !hideSingles || a.trackCount >= 5,
+    (album) => !hideSingles || hasEnoughTracksForAlbumFilter(album),
   );
 
   return (
@@ -208,7 +229,7 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
                     {album.artistName}
                   </p>
                   <p className="text-xs text-zinc-600 flex items-center gap-1.5">
-                    {album.trackCount} tracks
+                    {formatAlbumMeta(album)}
                     {album.explicit && (
                       <span className="inline-flex items-center justify-center w-4 h-4 bg-zinc-600 text-zinc-200 text-[9px] font-bold rounded-sm leading-none">
                         E
