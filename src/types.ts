@@ -10,6 +10,7 @@ export interface Song {
   trackId: number;
   name: string;
   artist: string;
+  albumTitle: string;
   artworkUrl: string;
   previewUrl: string | null;
   rating: number;
@@ -32,6 +33,8 @@ export interface Session {
   artistName: string;
   artworkUrl: string;
   albumId: number;
+  albumIds?: number[];
+  albumNames?: string[];
   songs: Song[];
   matchups: MatchupRecord[];
   createdAt: number;
