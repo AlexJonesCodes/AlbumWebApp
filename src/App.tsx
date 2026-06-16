@@ -4,10 +4,11 @@ import { loadSessions, saveSession, deleteSession } from './storage';
 import { Library } from './Library';
 import { AlbumSearch } from './AlbumSearch';
 import { SessionView } from './SessionView';
+import type { SearchMode } from './deezer';
 
 type View =
   | { page: 'library' }
-  | { page: 'search' }
+  | { page: 'search'; baseSessionId?: string; initialMode?: SearchMode }
   | { page: 'session'; sessionId: string };
 
 function App() {
@@ -18,7 +19,7 @@ function App() {
     setSessions(loadSessions());
   }
 
-  function handleCreate(session: Session) {
+  function handleSaveSession(session: Session) {
     saveSession(session);
     refresh();
     setView({ page: 'session', sessionId: session.id });
@@ -34,9 +35,18 @@ function App() {
     refresh();
   }
 
+  function handleExtendComparison(sessionId: string) {
+    setView({ page: 'search', baseSessionId: sessionId, initialMode: 'multi' });
+  }
+
   const active =
     view.page === 'session'
       ? sessions.find((s) => s.id === view.sessionId) ?? null
+      : null;
+
+  const baseSession =
+    view.page === 'search' && view.baseSessionId
+      ? sessions.find((s) => s.id === view.baseSessionId) ?? null
       : null;
 
   return (
@@ -51,8 +61,14 @@ function App() {
       )}
       {view.page === 'search' && (
         <AlbumSearch
-          onCreateSession={handleCreate}
-          onBack={() => setView({ page: 'library' })}
+          existingSession={baseSession}
+          initialMode={view.initialMode}
+          onSaveSession={handleSaveSession}
+          onBack={() =>
+            baseSession
+              ? setView({ page: 'session', sessionId: baseSession.id })
+              : setView({ page: 'library' })
+          }
         />
       )}
       {view.page === 'session' && active && (
@@ -60,6 +76,7 @@ function App() {
           session={active}
           onUpdate={handleUpdate}
           onBack={() => setView({ page: 'library' })}
+          onAddAlbum={() => handleExtendComparison(active.id)}
         />
       )}
     </div>
