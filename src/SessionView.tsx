@@ -6,6 +6,7 @@ interface Props {
   session: Session;
   onUpdate: (session: Session) => void;
   onBack: () => void;
+  onAddAlbum: () => void;
 }
 
 function makeTimestamp(): number {
@@ -19,7 +20,7 @@ function albumSummary(session: Session): string | null {
   return `${names.slice(0, 3).join(' · ')} +${names.length - 3} more`;
 }
 
-export function SessionView({ session, onUpdate, onBack }: Props) {
+export function SessionView({ session, onUpdate, onBack, onAddAlbum }: Props) {
   const [songs, setSongs] = useState(session.songs);
   const [matchups, setMatchups] = useState(session.matchups);
   const [currentPair, setCurrentPair] = useState<[string, string] | null>(
@@ -219,6 +220,12 @@ export function SessionView({ session, onUpdate, onBack }: Props) {
             </p>
           )}
         </div>
+        <button
+          onClick={onAddAlbum}
+          className="text-zinc-500 hover:text-zinc-200 text-xs transition-colors flex-shrink-0"
+        >
+          Add another album
+        </button>
         {matchups.length > 0 && (
           <button
             onClick={handleUndo}
