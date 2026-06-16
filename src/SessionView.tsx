@@ -7,6 +7,7 @@ interface Props {
   onUpdate: (session: Session) => void;
   onBack: () => void;
   onAddAlbum: () => void;
+  onImportComparison: () => void;
 }
 
 function makeTimestamp(): number {
@@ -20,7 +21,13 @@ function albumSummary(session: Session): string | null {
   return `${names.slice(0, 3).join(' · ')} +${names.length - 3} more`;
 }
 
-export function SessionView({ session, onUpdate, onBack, onAddAlbum }: Props) {
+export function SessionView({
+  session,
+  onUpdate,
+  onBack,
+  onAddAlbum,
+  onImportComparison,
+}: Props) {
   const [songs, setSongs] = useState(session.songs);
   const [matchups, setMatchups] = useState(session.matchups);
   const [currentPair, setCurrentPair] = useState<[string, string] | null>(
@@ -225,6 +232,12 @@ export function SessionView({ session, onUpdate, onBack, onAddAlbum }: Props) {
           className="text-zinc-500 hover:text-zinc-200 text-xs transition-colors flex-shrink-0"
         >
           Add another album
+        </button>
+        <button
+          onClick={onImportComparison}
+          className="text-zinc-500 hover:text-zinc-200 text-xs transition-colors flex-shrink-0"
+        >
+          Import comparison
         </button>
         {matchups.length > 0 && (
           <button
@@ -459,7 +472,7 @@ function VerdictBtn({
   variant: 'strong' | 'lean' | 'tie';
   onClick: () => void;
 }) {
-  const arrows = dir === 'left' ? '\u00ab ' : dir === 'right' ? ' \u00bb' : '';
+  const arrows = dir === 'left' ? '« ' : dir === 'right' ? ' »' : '';
   const text =
     dir === 'left'
       ? `${arrows}${label}`
