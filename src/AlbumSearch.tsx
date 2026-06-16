@@ -37,13 +37,25 @@ function buildSession(albums: DeezerAlbumDetail[], songs: Song[]): Session {
   };
 }
 
-function buildSongsFromAlbums(albums: DeezerAlbumDetail[]): Song[] {
-  const songs = new Map<number, Song>();
+function mergeSessionWithAlbums(
+  session: Session,
+  albums: DeezerAlbumDetail[],
+): Session {
+  const existingAlbumIds = session.albumIds?.length
+    ? session.albumIds
+    : [session.albumId];
+  const existingAlbumNames = session.albumNames?.length
+    ? session.albumNames
+    : [session.albumName];
 
-  for (const album of albums) {
+  const uniqueAlbums = albums.filter(
+    (album) => !existingAlbumIds.includes(album.id),
+  );
+  const songs = new Map(session.songs.map((song) => [song.trackId, song]));
+
+  for (const album of uniqueAlbums) {
     for (const track of album.tracks) {
       if (songs.has(track.id)) continue;
-
       songs.set(
         track.id,
         createSong(
@@ -58,7 +70,40 @@ function buildSongsFromAlbums(albums: DeezerAlbumDetail[]): Song[] {
     }
   }
 
-  return [...songs.values()];
+  const albumIds = [...existingAlbumIds, ...uniqueAlbums.map((album) => album.id)];
+  const albumNames = [
+    ...existingAlbumNames,
+    ...uniqueAlbums.map((album) => album.title),
+  ];
+  const artistNames = new Set<string>();
+
+  if (session.artistName !== 'Various Artists') {
+    artistNames.add(session.artistName);
+  }
+  for (const album of uniqueAlbums) {
+    artistNames.add(album.artistName);
+  }
+
+  const isMultiArtist = session.artistName === 'Various Artists' || artistNames.size > 1;
+  const artistName = isMultiArtist
+    ? 'Various Artists'
+    : [...artistNames][0] ?? session.artistName;
+  const albumName =
+    albumIds.length === 1
+      ? albumNames[0]
+      : isMultiArtist
+        ? 'Multi Album Comparison'
+        : `${artistName} Mix`;
+
+  return {
+    ...session,
+    albumName,
+    artistName,
+    albumIds,
+    albumNames,
+    songs: [...songs.values()],
+    updatedAt: Date.now(),
+  };
 }
 
 function hasEnoughTracksForAlbumFilter(album: DeezerAlbum): boolean {
@@ -83,13 +128,20 @@ function formatAlbumMeta(album: DeezerAlbum): string {
 }
 
 interface Props {
-  onCreateSession: (session: Session) => void;
+  existingSession?: Session | null;
+  initialMode?: SearchMode;
+  onSaveSession: (session: Session) => void;
   onBack: () => void;
 }
 
-export function AlbumSearch({ onCreateSession, onBack }: Props) {
+export function AlbumSearch({
+  existingSession,
+  initialMode = 'artist',
+  onSaveSession,
+  onBack,
+}: Props) {
   const [query, setQuery] = useState('');
-  const [mode, setMode] = useState<SearchMode>('artist');
+  const [mode, setMode] = useState<SearchMode>(initialMode);
   const [results, setResults] = useState<DeezerAlbum[]>([]);
   const [matchedArtist, setMatchedArtist] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
@@ -99,6 +151,14 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
   const [hasSearched, setHasSearched] = useState(false);
   const [hideSingles, setHideSingles] = useState(true);
   const [selectedAlbums, setSelectedAlbums] = useState<DeezerAlbum[]>([]);
+
+  const existingAlbumIds = new Set(
+    existingSession?.albumIds?.length
+      ? existingSession.albumIds
+      : existingSession
+        ? [existingSession.albumId]
+        : [],
+  );
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -147,7 +207,7 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
         ),
       );
 
-      onCreateSession(buildSession([detail], songs));
+      onSaveSession(buildSession([detail], songs));
     } catch {
       setError('Failed to load tracks. Try again.');
       setLoadingId(null);
@@ -164,14 +224,42 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
       const albums = await Promise.all(
         selectedAlbums.map((album) => getDeezerAlbum(album.id)),
       );
-      const songs = buildSongsFromAlbums(albums);
 
-      if (songs.length < 2) {
-        setError('You need at least 2 unique tracks across those albums.');
-        return;
+      let nextSession: Session;
+      if (existingSession) {
+        nextSession = mergeSessionWithAlbums(existingSession, albums);
+        if (nextSession.songs.length === existingSession.songs.length) {
+          setError('Those albums are already in this comparison.');
+          return;
+        }
+      } else {
+        const songs = new Map<number, Song>();
+        for (const album of albums) {
+          for (const track of album.tracks) {
+            if (songs.has(track.id)) continue;
+            songs.set(
+              track.id,
+              createSong(
+                track.id,
+                track.title,
+                track.artistName,
+                album.title,
+                album.coverXl,
+                track.preview || null,
+              ),
+            );
+          }
+        }
+
+        if (songs.size < 2) {
+          setError('You need at least 2 unique tracks across those albums.');
+          return;
+        }
+
+        nextSession = buildSession(albums, [...songs.values()]);
       }
 
-      onCreateSession(buildSession(albums, songs));
+      onSaveSession(nextSession);
     } catch {
       setError('Failed to load the selected albums. Try again.');
     } finally {
@@ -190,6 +278,8 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
   }
 
   function toggleSelectedAlbum(album: DeezerAlbum) {
+    if (existingAlbumIds.has(album.id)) return;
+
     if (selectedAlbums.some((item) => item.id === album.id)) {
       removeSelectedAlbum(album.id);
       return;
@@ -217,7 +307,7 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
       case 'album':
         return 'Album name...';
       case 'multi':
-        return 'Search albums, artists, or genres...';
+        return 'Search albums or artists...';
     }
   }
 
@@ -226,6 +316,11 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
   );
   const isBusy = searching || creatingMultiAlbum || loadingId !== null;
   const isMultiMode = mode === 'multi';
+  const comparisonAlbumCount = existingSession?.albumIds?.length
+    ? existingSession.albumIds.length
+    : existingSession
+      ? 1
+      : 0;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
@@ -237,7 +332,7 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
       </button>
 
       <h1 className="text-2xl font-bold text-zinc-100 mb-6 tracking-tight">
-        Find an Album
+        {existingSession ? 'Add Another Album' : 'Find an Album'}
       </h1>
 
       <div className="flex gap-1 mb-4 bg-zinc-900 rounded-lg p-1 w-fit overflow-x-auto">
@@ -308,10 +403,14 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-medium text-zinc-100">
-                Selected albums: {selectedAlbums.length}
+                {existingSession
+                  ? `Current comparison: ${comparisonAlbumCount} albums`
+                  : `Selected albums: ${selectedAlbums.length}`}
               </p>
               <p className="text-xs text-zinc-500 mt-1">
-                Build one ranking from albums across different artists or searches.
+                {existingSession
+                  ? 'Search for more albums and add them into this comparison.'
+                  : 'Build one ranking from albums across different artists or searches.'}
               </p>
             </div>
             <button
@@ -320,7 +419,11 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
               disabled={selectedAlbums.length === 0 || isBusy}
               className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-zinc-900 font-semibold px-4 py-2 rounded-lg transition-colors text-sm"
             >
-              {creatingMultiAlbum ? 'Building ranking...' : 'Rank selected albums'}
+              {creatingMultiAlbum
+                ? 'Updating comparison...'
+                : existingSession
+                  ? 'Add selected albums'
+                  : 'Rank selected albums'}
             </button>
           </div>
           {selectedAlbums.length > 0 && (
@@ -366,6 +469,7 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
             {filtered.map((album) => {
               const isLoading = loadingId === album.id;
               const isSelected = selectedAlbums.some((item) => item.id === album.id);
+              const isAlreadyAdded = existingAlbumIds.has(album.id);
 
               return (
                 <button
@@ -373,7 +477,7 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
                   onClick={() =>
                     isMultiMode ? toggleSelectedAlbum(album) : handleSelect(album)
                   }
-                  disabled={isBusy && !isMultiMode}
+                  disabled={(isBusy && !isMultiMode) || (isMultiMode && isAlreadyAdded)}
                   className={`group text-left bg-zinc-900 rounded-xl p-3 transition-colors disabled:opacity-60 ${
                     isSelected
                       ? 'ring-2 ring-amber-500 bg-zinc-800'
@@ -398,13 +502,15 @@ export function AlbumSearch({ onCreateSession, onBack }: Props) {
                     {isMultiMode && (
                       <div className="absolute top-2 right-2">
                         <span
-                          className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold border ${
-                            isSelected
-                              ? 'bg-amber-500 text-zinc-900 border-amber-400'
-                              : 'bg-black/60 text-zinc-200 border-zinc-600'
+                          className={`inline-flex items-center justify-center min-w-6 h-6 rounded-full px-1 text-[10px] font-bold border ${
+                            isAlreadyAdded
+                              ? 'bg-zinc-800 text-zinc-300 border-zinc-600'
+                              : isSelected
+                                ? 'bg-amber-500 text-zinc-900 border-amber-400'
+                                : 'bg-black/60 text-zinc-200 border-zinc-600'
                           }`}
                         >
-                          {isSelected ? '\u2713' : '+'}
+                          {isAlreadyAdded ? 'Added' : isSelected ? '✓' : '+'}
                         </span>
                       </div>
                     )}
