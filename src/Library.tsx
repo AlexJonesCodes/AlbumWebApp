@@ -8,6 +8,15 @@ interface Props {
   onDeleteSession: (id: string) => void;
 }
 
+function describeSession(session: Session): string {
+  const albumCount = session.albumNames?.length ?? 1;
+  if (albumCount <= 1) {
+    return session.artistName;
+  }
+
+  return `${session.artistName} · ${albumCount} albums`;
+}
+
 export function Library({
   sessions,
   onNewRanking,
@@ -66,7 +75,7 @@ export function Library({
                     {session.albumName}
                   </p>
                   <p className="text-sm text-zinc-400 truncate">
-                    {session.artistName}
+                    {describeSession(session)}
                   </p>
                   <p className="text-xs text-zinc-500 mt-0.5">
                     {session.songs.length} songs &middot;{' '}
