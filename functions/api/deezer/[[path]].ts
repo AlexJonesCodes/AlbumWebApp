@@ -1,21 +1,29 @@
-interface Env {}
+const API_PREFIX = '/api/deezer/';
 
-interface PagesContext {
-  request: Request;
-  params: {
-    path?: string;
-  };
-  env: Env;
+function getUpstreamPath(requestUrl: URL): string {
+  const path = requestUrl.pathname.startsWith(API_PREFIX)
+    ? requestUrl.pathname.slice(API_PREFIX.length)
+    : '';
+
+  return path.replace(/^\/+|\/+$/g, '');
 }
 
-export async function onRequest(context: PagesContext): Promise<Response> {
+export async function onRequest(context: { request: Request }): Promise<Response> {
   const incomingUrl = new URL(context.request.url);
-  const path = context.params.path ?? '';
+  const path = getUpstreamPath(incomingUrl);
+
+  if (!path) {
+    return Response.json(
+      { error: 'Missing Deezer API path.' },
+      { status: 400 },
+    );
+  }
+
   const upstreamUrl = new URL(`https://api.deezer.com/${path}`);
   upstreamUrl.search = incomingUrl.search;
 
   const upstreamResponse = await fetch(upstreamUrl.toString(), {
-    method: context.request.method,
+    method: 'GET',
     headers: {
       Accept: 'application/json',
     },
