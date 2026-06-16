@@ -159,6 +159,7 @@ export function AlbumSearch({
         ? [existingSession.albumId]
         : [],
   );
+  const isComparisonBuilder = mode === 'multi' || !!existingSession;
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -295,7 +296,7 @@ export function AlbumSearch({
     setResults([]);
     setHasSearched(false);
     setQuery('');
-    if (nextMode !== 'multi') {
+    if (!existingSession && nextMode !== 'multi') {
       setSelectedAlbums([]);
     }
   }
@@ -315,7 +316,6 @@ export function AlbumSearch({
     (album) => !hideSingles || hasEnoughTracksForAlbumFilter(album),
   );
   const isBusy = searching || creatingMultiAlbum || loadingId !== null;
-  const isMultiMode = mode === 'multi';
   const comparisonAlbumCount = existingSession?.albumIds?.length
     ? existingSession.albumIds.length
     : existingSession
@@ -391,14 +391,14 @@ export function AlbumSearch({
 
       {error && <p className="text-rose-400 text-sm mb-6">{error}</p>}
 
-      {matchedArtist && mode === 'artist' && (
+      {matchedArtist && mode === 'artist' && !existingSession && (
         <p className="text-sm text-zinc-400 mb-4">
           Showing albums by{' '}
           <span className="text-zinc-200 font-medium">{matchedArtist}</span>
         </p>
       )}
 
-      {isMultiMode && (
+      {isComparisonBuilder && (
         <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -409,7 +409,7 @@ export function AlbumSearch({
               </p>
               <p className="text-xs text-zinc-500 mt-1">
                 {existingSession
-                  ? 'Search for more albums and add them into this comparison.'
+                  ? 'Search by artist or album, then add more releases into this comparison.'
                   : 'Build one ranking from albums across different artists or searches.'}
               </p>
             </div>
@@ -458,7 +458,7 @@ export function AlbumSearch({
               />
               Hide singles &amp; EPs (fewer than 5 tracks)
             </label>
-            {isMultiMode && (
+            {isComparisonBuilder && (
               <span className="text-xs text-zinc-500">
                 Click albums to add or remove them from the comparison set.
               </span>
@@ -475,15 +475,18 @@ export function AlbumSearch({
                 <button
                   key={album.id}
                   onClick={() =>
-                    isMultiMode ? toggleSelectedAlbum(album) : handleSelect(album)
+                    isComparisonBuilder ? toggleSelectedAlbum(album) : handleSelect(album)
                   }
-                  disabled={(isBusy && !isMultiMode) || (isMultiMode && isAlreadyAdded)}
+                  disabled={
+                    (isBusy && !isComparisonBuilder) ||
+                    (isComparisonBuilder && isAlreadyAdded)
+                  }
                   className={`group text-left bg-zinc-900 rounded-xl p-3 transition-colors disabled:opacity-60 ${
                     isSelected
                       ? 'ring-2 ring-amber-500 bg-zinc-800'
                       : 'hover:bg-zinc-800'
                   }`}
-                  aria-pressed={isMultiMode ? isSelected : undefined}
+                  aria-pressed={isComparisonBuilder ? isSelected : undefined}
                 >
                   <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-zinc-800">
                     {album.coverUrl && (
@@ -499,7 +502,7 @@ export function AlbumSearch({
                         <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
                       </div>
                     )}
-                    {isMultiMode && (
+                    {isComparisonBuilder && (
                       <div className="absolute top-2 right-2">
                         <span
                           className={`inline-flex items-center justify-center min-w-6 h-6 rounded-full px-1 text-[10px] font-bold border ${
